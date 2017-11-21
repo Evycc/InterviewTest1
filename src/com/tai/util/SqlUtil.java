@@ -4,34 +4,16 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import com.tai.test.SignLink;
-import com.tai.test.SignNode;
-
-/**
- * 已知带有特殊标记的sql语句和前端传过来的参数集合，用参数替换sql的特殊标记，如果标记对应的参数存在，
- * 则直接替换，如果不存在，要把对应的一段条件去掉，最后得出一个能用于查询的sql语句。要求给出完整代码，代码加上必要的注释。
- * 
- * 例如:
- * 已知 1）带有特殊标记的sql语句
- * select * from T1 where 1=1 and a = :aa  and (b =:bb or b =:cc) and e like :ee
- * 
- * 2）前端传过来的参数有 aa= "111" , bb= "222", cc= "333",dd = "444"
- * 
- * 得到 select * from T1 where 1=1 and a = 111 and (b = 222 or b = 333)
- * @author Evy
- *
- */
 public class SqlUtil {
 	/**
 	 * 用参数替换sql的特殊标记，如果标记对应的参数存在，则直接替换，如果不存在，要把对应的一段条件去掉，
 	 * 最后得出一个能用于查询的sql语句，返回能用于查询的sql语句。
 	 * 
-	 * @param labelSql	 带有标记的sql语句, 如
-	 * select * from T1 where 1=1 and a = :aa  and (b =:bb or b =:cc) and e like :ee
+	 * @param labelSql	 带有标记的sql语句
 	 * 
 	 * @param param	参数集合，如aa= "111" , bb= "222", cc= "333",dd = "444"
 	 * 
-	 * @return	 能用于查询的sql,如select * from T1 where 1=1 and a = 111 and (b = 222 or b = 333)
+	 * @return	返回sql语句
 	 */
 	public static String getRunnableSql(String labelSql, Map<String,Object> param){
 		
@@ -42,8 +24,9 @@ public class SqlUtil {
 		sBuilder.append(labelSql.substring(subIndex));
 		
 		buildSql(sBuilder, param);
+		sBuilder.insert(0, labelSql.substring(0, subIndex));
 		
-		return labelSql;
+		return sBuilder.toString();
 	}
 	
 	/**
@@ -56,7 +39,7 @@ public class SqlUtil {
 		int paramNum = 0;
 		
 		//用正则表达式获取标记
-		String signRegex = ":{1}[a-zA-Z]*";
+		String signRegex = ":{1}[a-zA-Z]*|[a-zA-z0-9]+[\\s]*={1}[\\s]*[a-zA-z0-9]+";
 		
 		Pattern pattern = Pattern.compile(signRegex);
 		Matcher matcher = pattern.matcher(str.toString());
@@ -71,37 +54,104 @@ public class SqlUtil {
 			link.insert(new SignNode(sign, start, end));
 		}
 		
-		link.display();
-		
 		//构建sql语句
 		while(!link.isEmpty()) {
 			SignNode node = link.deleteFirst();
-			String signStr = node.getSign().substring(1);
-			if (param.containsKey(signStr)) {
-				//存在标记
-				str.replace(node.getStart(), node.getEnd(), (String) param.get(signStr));
-				paramNum++;
-			}else {
-				//不存在标记，消除条件
-				SignNode lastNode = link.getHead();
-				
-				if ((lastNode == null) && (paramNum == 0)) {
-					//paramNum为0则将'where'语句去除
-					int startIndex = str.indexOf("where");
-					System.out.println("startIndex: " + startIndex);
-					str.replace(startIndex, node.getEnd(), (String) param.get(signStr));
-					
-				}else if ((lastNode == null) && (paramNum > 0)) {
-					int startIndex = str.indexOf("where");
-					System.out.println("startIndex: " + startIndex);
-					str.replace(startIndex + "where".length(), node.getEnd(), (String) param.get(signStr));
-					
+			String signStr = node.getSign();
+			if (signStr.matches("^:{1}[a-zA-Z]*$")) {
+				signStr = node.getSign().substring(1);
+				if (param.containsKey(signStr)) {
+					//存在标记
+					str.replace(node.getStart(), node.getEnd(), (String) param.get(signStr));
+					paramNum++;
 				}else {
-					str.replace(lastNode.getEnd(), node.getEnd(), "");
+					//不存在标记，消除条件
+					SignNode lastNode = link.getHead();
+					
+					if ((lastNode == null) && (paramNum == 0)) {
+						//paramNum为0则将'where'语句去除
+						int startIndex = str.indexOf("where");
+						System.out.println("startIndex: " + startIndex);
+						str.replace(startIndex, node.getEnd(), "");
+						
+					}else if ((lastNode == null) && (paramNum > 0)) {
+						int startIndex = str.indexOf("where");
+						System.out.println("startIndex: " + startIndex);
+						str.replace(startIndex + "where".length(), node.getEnd(), "");
+						
+					}else {
+						str.replace(lastNode.getEnd(), node.getEnd(), "");
+					}
 				}
 			}
 		}
 		
-		System.out.println(str.toString());
+		//清除多余括号
+		removeExcessBrackets(str);
+	}
+	
+	/**
+	 * 清除多余括号
+	 * @param str
+	 */
+	private static void removeExcessBrackets(StringBuilder str) {
+		SignLink link = new SignLink();
+		
+		int leftBrackets = 0;
+		int rightBrackets = 0;
+		
+		//用正则表达式获取左右括号
+		String regex = "[(|)]";
+				
+		Pattern pattern = Pattern.compile(regex);
+		Matcher matcher = pattern.matcher(str.toString());
+		
+		while(matcher.find()) {
+			String sign = matcher.group();
+			int start = matcher.start();
+			int end = matcher.end();
+			link.insert(new SignNode(sign, start, end));
+		}
+		
+		//统计左右括号数量
+		char[] chars = str.toString().toCharArray();
+		
+		for(int i = 0; i < chars.length; i++) {
+			switch (chars[i]) {
+				case '(':
+					leftBrackets++;
+					break;
+				case ')':
+					rightBrackets++;
+				default:
+					break;
+			}
+		}
+		
+		if (leftBrackets != rightBrackets) {//左右括号数量不等
+			//true : 消除多余的前括号		false : 消除多余右括号
+			boolean isLeft = leftBrackets > rightBrackets ? true : false;
+			//消除括号数量
+			int index = leftBrackets - rightBrackets;
+			
+			
+			while(index > 0) {
+				if (isLeft) {
+					String brackets = "(";
+					SignNode node = link.deleteFirst();
+					if (node.getSign().equals(brackets)) {
+						str.replace(node.getStart(), node.getEnd(), "");
+						index--;
+					}
+				}else {
+					String brackets = ")";
+					SignNode node = link.deleteFirst();
+					if (node.getSign().equals(brackets)) {
+						str.replace(node.getStart(), node.getEnd(), "");
+						index--;
+					}
+				}
+			}
+		}
 	}
 }

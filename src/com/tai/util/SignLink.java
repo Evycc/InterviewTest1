@@ -1,4 +1,4 @@
-package com.tai.test;
+package com.tai.util;
 
 /**
  * 存储sql标记的链表
