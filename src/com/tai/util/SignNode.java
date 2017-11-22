@@ -19,6 +19,7 @@ public class SignNode {
 	 */
 	private int end;
 	private SignNode next;
+	private SignNode previous;
 	
 	public SignNode() {
 		setSign("");
@@ -32,6 +33,7 @@ public class SignNode {
 		setStart(0);
 		setEnd(0);
 		next = null;
+		previous = null;
 	}
 	
 	public SignNode(String sign, int start, int end) {
@@ -39,6 +41,15 @@ public class SignNode {
 		setStart(start);
 		setEnd(end);
 		next = null;
+		previous = null;
+	}
+
+	public SignNode getPrevious() {
+		return previous;
+	}
+
+	public void setPrevious(SignNode previous) {
+		this.previous = previous;
 	}
 
 	public String getSign() {

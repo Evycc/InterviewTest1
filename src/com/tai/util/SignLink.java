@@ -19,21 +19,21 @@ public class SignLink {
 	public void insert(String sign) {
 		SignNode node = new SignNode(sign);
 		
-		if (getHead() == null) {
-			setHead(node);
-		}else {
-			node.setNext(getHead());
-			setHead(node);
+		if (getHead() != null) {
+			getHead().setPrevious(node);
 		}
+		
+		node.setNext(getHead());
+		setHead(node);
 	}
 	
 	public void insert(SignNode node) {
-		if (getHead() == null) {
-			setHead(node);
-		}else {
-			node.setNext(getHead());
-			setHead(node);
+		if (getHead() != null) {
+			getHead().setPrevious(node);
 		}
+		
+		node.setNext(getHead());
+		setHead(node);
 	}
 	
 	/**
