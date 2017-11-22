@@ -16,8 +16,8 @@ public class SqlUtil {
 	 * @return	返回sql语句
 	 */
 	public static String getRunnableSql(String labelSql, Map<String,Object> param){
-		
 		StringBuilder sBuilder = new StringBuilder(5);
+		
 		//从SQL语句中'where'开头构建可执行的SQL语句
 		String buildBrfore = "where";
 		int subIndex = labelSql.indexOf(buildBrfore);
@@ -39,7 +39,8 @@ public class SqlUtil {
 		int paramNum = 0;
 		
 		//用正则表达式获取标记
-		String signRegex = ":{1}[a-zA-Z]*|[a-zA-z0-9]+[\\s]*={1}[\\s]*[a-zA-z0-9]+";
+		String signRegex = ":{1}[a-zA-Z]*|[a-zA-z0-9]+[\\s]*={1}[\\s]*[a-zA-z0-9]+"
+				+ "|[0-9]+|[']{1}[a-zA-z0-9]*[']{1}";
 		
 		Pattern pattern = Pattern.compile(signRegex);
 		Matcher matcher = pattern.matcher(str.toString());
@@ -61,7 +62,7 @@ public class SqlUtil {
 			if (signStr.matches("^:{1}[a-zA-Z]*$")) {
 				signStr = node.getSign().substring(1);
 				if (param.containsKey(signStr)) {
-					//存在标记
+					//存在标记,将标记替换为对应参数
 					str.replace(node.getStart(), node.getEnd(), (String) param.get(signStr));
 					paramNum++;
 				}else {
@@ -71,12 +72,10 @@ public class SqlUtil {
 					if ((lastNode == null) && (paramNum == 0)) {
 						//paramNum为0则将'where'语句去除
 						int startIndex = str.indexOf("where");
-						System.out.println("startIndex: " + startIndex);
 						str.replace(startIndex, node.getEnd(), "");
 						
 					}else if ((lastNode == null) && (paramNum > 0)) {
 						int startIndex = str.indexOf("where");
-						System.out.println("startIndex: " + startIndex);
 						str.replace(startIndex + "where".length(), node.getEnd(), "");
 						
 					}else {
@@ -88,6 +87,51 @@ public class SqlUtil {
 		
 		//清除多余括号
 		removeExcessBrackets(str);
+		//清除多余条件
+		removeExcessCondition(str);
+	}
+	
+	/**
+	 * 消除多余条件
+	 */
+	private static void removeExcessCondition(StringBuilder sBuilder) {
+		//用正则表达式获取标记
+		String signRegex = "[a-zA-z0-9]+[\\s]*={1}[\\s]*[a-zA-z0-9]+"
+				+ "|[0-9]+|[']{1}[a-zA-z0-9]*[']{1}";
+				
+		Pattern pattern = Pattern.compile(signRegex);
+		Matcher matcher = pattern.matcher(sBuilder.toString());
+				
+		//存储标记的链表
+		SignLink link = new SignLink();
+				
+		while(matcher.find()) {
+				String sign = matcher.group();
+				int start = matcher.start();
+				int end = matcher.end();
+				link.insert(new SignNode(sign, start, end));
+		}		
+		
+		SignNode lastNode = null;
+		while(link.getHead() != null) {
+			lastNode = link.deleteFirst();
+		}
+		
+		//存在表达式
+		if (lastNode != null) {
+			String tempStr = sBuilder.substring(0, lastNode.getStart());
+			String whereStr = "where";
+			//如果第一个表达式的条件是where	结束方法
+			boolean hasWhere = tempStr.indexOf(whereStr) > 0;
+			if (hasWhere) {
+				return;
+			}
+			//如果第一个表达式的条件不是where 而是其他,则消除
+			if (tempStr.matches("^[\\s]*[\\S]+[\\s]*$") && !hasWhere) {
+				sBuilder.replace(0, lastNode.getStart(), whereStr + " ");
+			}
+		}
+		
 	}
 	
 	/**

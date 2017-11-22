@@ -11,7 +11,7 @@ import com.tai.util.SignLink;
 import com.tai.util.SignNode;
 import com.tai.util.SqlUtil;
 
-public class TestClass {
+public class LiuXiaoTai {
 	/**
 	 * 1) sql: select * from T1 where 1=1 and (((a = :AA or B like :BB or c in :CC)
 	 * and d in :DD ) or e = :EE) and f like :FF 2）参数：GG = "1223" , aa = "first"
@@ -57,6 +57,17 @@ public class TestClass {
 		str = SqlUtil.getRunnableSql(sqlStr2, map);
 		
 		System.out.println("测试sql语句3:\n" + sqlStr2);
+		System.out.println("测试参数");
+		map.forEach((s, o) -> System.out.print(s + ":" + o.toString() + "\t")); 
+		System.out.println("\n返回sql语句:\n" + str);
+		
+		System.out.println();
+		
+		//测试4
+		String sqlStr3 = "select * from T1 where a=:GG and 1 = 1 or 2 or :BB";
+		str = SqlUtil.getRunnableSql(sqlStr3, map);
+				
+		System.out.println("测试sql语句4:\n" + sqlStr3);
 		System.out.println("测试参数");
 		map.forEach((s, o) -> System.out.print(s + ":" + o.toString() + "\t")); 
 		System.out.println("\n返回sql语句:\n" + str);
